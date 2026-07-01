@@ -14,8 +14,9 @@ async function uniqueSlug(base: string, excludeId?: string): Promise<string> {
   }
 }
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
-  const product = await prisma.product.findUnique({ where: { id: params.id }, include: { category: true } });
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const product = await prisma.product.findUnique({ where: { id }, include: { category: true } });
   if (!product) return NextResponse.json({ error: "Товар не найден" }, { status: 404 });
 
   return NextResponse.json({
@@ -23,18 +24,19 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   });
 }
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const body = await req.json();
     const data = productSchema.partial().parse(body);
 
     let slug: string | undefined = undefined;
     if (data.slug) {
-      slug = await uniqueSlug(slugify(data.slug), params.id);
+      slug = await uniqueSlug(slugify(data.slug), id);
     }
 
     const product = await prisma.product.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         ...data,
         slug,
@@ -49,9 +51,10 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await prisma.product.delete({ where: { id: params.id } });
+    const { id } = await params;
+    await prisma.product.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "Товар не найден" }, { status: 404 });

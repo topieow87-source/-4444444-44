@@ -31,7 +31,7 @@ async function getHeroStats() {
   return { productsCount, ordersToday, avgRating };
 }
 
-export const revalidate = 60; // ISR: обновление контента раз в минуту
+export const dynamic = "force-dynamic"; // рендерим на каждый запрос — без обращения к БД во время build
 
 export default async function HomePage() {
   const [s, stats] = await Promise.all([getSettings(), getHeroStats()]);
