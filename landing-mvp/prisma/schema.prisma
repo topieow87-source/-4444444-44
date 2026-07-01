@@ -1,0 +1,118 @@
+// Prisma schema — PostgreSQL
+// Запуск: npx prisma migrate dev
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+}
+
+enum OrderStatus {
+  NEW
+  CONFIRMED
+  SHIPPED
+  DONE
+  CANCELLED
+}
+
+enum DeliveryMethod {
+  NOVA_POSHTA
+  UKRPOSHTA
+  PICKUP
+}
+
+enum PaymentMethod {
+  COD
+  CARD
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(ADMIN)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String
+  slug      String    @unique
+  createdAt DateTime  @default(now())
+  products  Product[]
+}
+
+model Product {
+  id              String    @id @default(cuid())
+  title           String
+  slug            String    @unique
+  description     String    @db.Text
+  price           Decimal   @db.Decimal(10, 2)
+  oldPrice        Decimal?  @db.Decimal(10, 2)
+  discount        Int?      // % — вычисляется на фронте, но можно хранить фиксировано
+  images          String[]  // массив URL из Cloudinary
+  characteristics Json?     // [{ "label": "Цвет", "value": "Чёрный" }, ...]
+  stock           Int?      // остаток на складе — если задан, показываем бейдж "осталось X шт."
+  isHit           Boolean   @default(false)
+  categoryId      String?
+  category        Category? @relation(fields: [categoryId], references: [id])
+  isActive        Boolean   @default(true)
+  sortOrder       Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([isActive])
+  @@index([categoryId])
+  @@index([slug])
+}
+
+model OrderRequest {
+  id             String         @id @default(cuid())
+  name           String
+  phone          String
+  city           String?
+  region         String?
+  deliveryMethod DeliveryMethod?
+  warehouse      String?        // отделение НП / индекс Укрпошты — не нужно для самовывоза
+  paymentMethod  PaymentMethod?
+  comment        String?        @db.Text
+  productId      String?
+  productTitle   String?        // снимок названия товара на момент заказа
+  isQuick        Boolean        @default(false) // заявка через "Быстрый заказ" (минимум полей)
+  status         OrderStatus    @default(NEW)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  authorName String
+  rating     Int      @default(5) // 1-5
+  text       String   @db.Text
+  isApproved Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([isApproved])
+}
+
+// Единая таблица key-value для настроек и контента сайта
+// key примеры: "hero.title", "contacts.telegram", "seo.title" и т.д.
+model SiteSettings {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
+}
